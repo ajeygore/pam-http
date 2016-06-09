@@ -16,6 +16,7 @@
 *.exe
 *.out
 *.app
+test
 
 .idea
 CMakeLists.txt
