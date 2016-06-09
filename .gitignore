@@ -17,6 +17,7 @@
 *.out
 *.app
 test
+check_gate
 
 .idea
 CMakeLists.txt
