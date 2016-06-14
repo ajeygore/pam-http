@@ -1,10 +1,10 @@
 CFLAGS += -Werror -Wall
-all: check_gate gate_pam.so
+all: check_gate pam_gate.so
 
 clean:
-	$(RM) check_gate gate_pam.so *.o
+	$(RM) check_gate pam_gate.so *.o
 
-gate_pam.so: src/gate_pam.c
+pam_gate.so: src/pam_gate.c
 	$(CC) $(CFLAGS) -fPIC -shared -Xlinker -x -o $@ $< -lcurl
 
 check_gate: src/check_gate.c

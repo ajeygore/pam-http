@@ -99,7 +99,7 @@ static int getUrlWithUser(const char *pUrl, const char *pCaFile) {
     struct gate_response_string s;
     init_string(&s);
 
-    //  printf("URL: %s\n", pUrl);
+    //printf("URL: %s\n", pUrl);
 
     curl_easy_setopt(pCurl, CURLOPT_URL, pUrl);
     curl_easy_setopt(pCurl, CURLOPT_WRITEFUNCTION, writeFn);
@@ -126,25 +126,30 @@ static int getUrlWithUser(const char *pUrl, const char *pCaFile) {
     //printf("Res: %s\n", s.ptr);
     //printf("Res Integer: %d\n", atoi(s.ptr));
 
+
     res = atoi(s.ptr);
+
+    //printf("Result %s Length %d\n", s.ptr, (int)strlen(s.ptr));
+    if (strlen(s.ptr) > 2 || strlen(s.ptr) < 1)
+        res = 1;
 
     return res;
 }
 
-int get_ip_addresses(char *addresses) {
+int get_ip_addresses(char **addresses) {
     struct ifaddrs *ifap, *ifa;
     struct sockaddr_in *sa;
     char *addr;
     char ip_addresses[100][20];
-    getifaddrs (&ifap);
+    getifaddrs(&ifap);
     int addr_counter = 0;
     int addr_mem = 0;
-    char * ip_fmt_str;
+    char *ip_fmt_str;
     for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr->sa_family==AF_INET) {
+        if (ifa->ifa_addr->sa_family == AF_INET) {
             sa = (struct sockaddr_in *) ifa->ifa_addr;
             addr = inet_ntoa(sa->sin_addr);
-            if ( strncmp(addr, (const char *)"127.0.0.1", strlen("127.0.0.1"))){
+            if (strncmp(addr, (const char *) "127.0.0.1", strlen("127.0.0.1"))) {
                 strcpy(ip_addresses[addr_counter], addr);
                 addr_counter++;
             }
@@ -152,21 +157,26 @@ int get_ip_addresses(char *addresses) {
         }
     }
 
-    addr_mem = (20 * addr_counter) + 3;
-    ip_fmt_str = (char *) malloc( addr_mem );
+    addr_mem = (16 * addr_counter) + 1;
+    ip_fmt_str = (char *) malloc(addr_mem);
+    *addresses = (char *) malloc(addr_mem);
     memset(ip_fmt_str, 0, addr_mem);
 
-    strcat(ip_fmt_str, (const char *)"[");
+    //strcat(ip_fmt_str, (const char *) "[");
 
-    for(int count=0; count < addr_counter; count++){
-        strcat(ip_fmt_str, (const char *)"\"");
-        strcat(ip_fmt_str, (const char *)ip_addresses[count]);
-        strcat(ip_fmt_str, (const char *)"\"");
-        strcat(ip_fmt_str, (const char *)",");
+
+    for (int count = 0; count < addr_counter; count++) {
+        //strcat(ip_fmt_str, (const char *) "\"");
+        strcat(ip_fmt_str, (const char *) ip_addresses[count]);
+        //strcat(ip_fmt_str, (const char *) "\"");
+        strcat(ip_fmt_str, (const char *) ",");
     }
-    ip_fmt_str[strlen(ip_fmt_str) - 1] = ']';
-    strcpy(addresses, ip_fmt_str);
+    ip_fmt_str[strlen(ip_fmt_str) - 1] = '\0';
+    //printf("returning ip_fmt_str %s\n", ip_fmt_str);
+    strcpy(*addresses, ip_fmt_str);
+    free(ip_fmt_str);
     freeifaddrs(ifap);
+    //printf("returning addr_counter %s\n", *addresses);
     return addr_counter;
 }
 
@@ -186,8 +196,10 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
     struct pam_response *pResp;
     const struct pam_message *pMsg = &msg;
 
-    char ip_addresses[100][20];
-    int addr_counter = 0;
+    char *ip_addresses;
+
+    int print_debug = 0;
+
 
     msg.msg_style = PAM_PROMPT_ECHO_OFF;
     msg.msg = "Password: ";
@@ -217,11 +229,16 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 
     memset(pUrlWithUser, 0, 1000);
 
-    addr_counter = get_ip_addresses(ip_addresses);
+    get_ip_addresses(&ip_addresses);
 
     sprintf(pUrlWithUser, "%s/?user=%s&password=%s&addresses=%s", pUrl, pUsername, pResp[0].resp, ip_addresses);
 
-    //printf("URL %s\n", pUrlWithUser );
+    if (print_debug)
+        printf("got ip addresses %s\n", ip_addresses);
+
+    free(ip_addresses);
+    if (print_debug)
+        printf("URL %s\n", pUrlWithUser);
     if (getUrlWithUser(pUrlWithUser, pCaFile) != 0) {
         ret = PAM_AUTH_ERR;
     }
@@ -229,7 +246,6 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
         printf("Gate Pam authentication - Sorry I can't do this.\n");
         ret = PAM_AUTH_ERR;
     }*/
-
     memset(pResp[0].resp, 0, strlen(pResp[0].resp));
     free(pResp);
 
